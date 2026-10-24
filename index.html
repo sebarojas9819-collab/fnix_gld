@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1b2a">
+  <meta name="description" content="Panel estático de análisis de mantenimiento CMMS: carga de datos, indicadores, gráficos dinámicos e informe PDF.">
+  <title>GMAO · Gestión de Mantenimiento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="./" aria-label="GMAO, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36" fill="none"><path d="M18 3.8 30.3 11v14L18 32.2 5.7 25V11L18 3.8Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 22.7V14l6-3.5 6 3.5v8.7l-6 3.4-6-3.4Z" stroke="currentColor" stroke-width="1.8"/><path d="M18 10.7v15.4m-6-12.1 12 7" stroke="currentColor" stroke-width="1.5"/></svg>
+        </span>
+        <span class="brand-copy"><strong>GMAO</strong><small>INTELLIGENCE</small></span>
+      </a>
+      <div class="sidebar-divider"></div>
+      <p class="nav-label">ESPACIO DE TRABAJO</p>
+      <a class="nav-item active" href="#overview">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.4"/></svg>
+        <span>Resumen</span>
+      </a>
+      <a class="nav-item" href="#analytics">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5h16M6.5 16V10m5.5 6V5m5.5 11v-8"/></svg>
+        <span>Análisis técnico</span>
+      </a>
+      <a class="nav-item" href="#priorities">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 21 20H3l9-16.5Z"/><path d="M12 9v4.5m0 3.2v.1"/></svg>
+        <span>Activos prioritarios</span>
+      </a>
+      <div class="sidebar-spacer"></div>
+      <div class="privacy-card">
+        <span class="privacy-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5.7c0 4.6-3 7.8-7 9.3-4-1.5-7-4.7-7-9.3V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <strong>Datos en tu dispositivo</strong>
+        <p>El análisis se ejecuta localmente en tu navegador. Tus archivos no se envían a un servidor.</p>
+      </div>
+      <div class="sidebar-footer">CMMS · Gestión de activos<br><span>Panel estático v1.0</span></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Gestión de activos</span><span class="breadcrumb-separator">/</span><strong>Panel de mantenimiento</strong></div>
+        <div class="topbar-right">
+          <span class="local-badge"><i></i> Procesamiento local</span>
+          <button class="button button-primary button-export" id="exportPdf" type="button" disabled>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 16.5v3h14v-3"/></svg>
+            Exportar informe
+          </button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <section class="page-heading" id="overview">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-line"></span> CENTRO DE CONTROL</p>
+            <h1>Gestión de mantenimiento</h1>
+            <p class="page-subtitle">Transforma los registros de tu CMMS en decisiones de mantenimiento más claras.</p>
+          </div>
+          <div class="data-source" id="dataSource">
+            <span class="source-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5c0-1.4 3.6-2.5 8-2.5s8 1.1 8 2.5-3.6 2.5-8 2.5-8-1.1-8-2.5Z"/><path d="M4 6.5v5c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5v-5M4 11.5v5C4 17.9 7.6 19 12 19s8-1.1 8-2.5v-5"/></svg></span>
+            <span><small>FUENTE ACTIVA</small><strong id="sourceName">Sin dataset</strong></span>
+          </div>
+        </section>
+
+        <section class="upload-panel" id="uploadPanel" aria-label="Carga de dataset">
+          <div class="upload-main">
+            <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0L8 8m4-4 4 4"/><path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/></svg></div>
+            <div class="upload-copy">
+              <strong>Analiza un dataset de mantenimiento</strong>
+              <span>Arrastra un CSV o Excel aquí, o <label for="fileInput" class="text-action">selecciónalo desde tu equipo</label></span>
+            </div>
+          </div>
+          <div class="upload-actions">
+            <span class="file-hint">CSV · XLSX · XLS</span>
+          </div>
+          <input id="fileInput" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+        </section>
+        <div class="status-message" id="statusMessage" role="status" aria-live="polite" hidden></div>
+
+        <section class="filter-bar" aria-label="Filtros del análisis">
+          <div class="filter-heading"><span class="filter-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16l-6.4 7.4v5.1l-3.2 1.7v-6.8L4 5Z"/></svg></span><strong>Filtros</strong></div>
+          <label class="filter-control"><span>TIPO DE MANTENIMIENTO</span><select id="typeFilter"><option value="">Todos los tipos</option></select></label>
+          <label class="filter-control"><span>CRITICIDAD</span><select id="criticalityFilter"><option value="">Todas</option></select></label>
+          <label class="filter-control"><span>DESDE</span><input id="dateFrom" type="date"></label>
+          <label class="filter-control"><span>HASTA</span><input id="dateTo" type="date"></label>
+          <label class="filter-control search-control"><span>BUSCAR ACTIVO / FALLA</span><input id="searchFilter" type="search" placeholder="Equipo, OT, modo de falla…"></label>
+          <button class="button button-quiet reset-button" id="resetFilters" type="button">Limpiar</button>
+        </section>
+
+        <section class="kpi-grid" aria-label="Indicadores clave">
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v13h-15V7A2.5 2.5 0 0 1 7 4.5Z"/><path d="M8.5 9h7m-7 4h7m-7 4h4"/></svg></span><span class="kpi-period">EN EL PERÍODO</span></div>
+            <strong class="kpi-value" id="kpiOrders">—</strong><span class="kpi-label">Órdenes de trabajo</span><span class="kpi-foot" id="kpiRows">Carga un dataset para comenzar</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-violet"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18.5 9 14l3 2.5 7-9"/><path d="M14.5 7.5H19v4.5"/></svg></span><span class="kpi-period">CARGA CORRECTIVA</span></div>
+            <strong class="kpi-value" id="kpiCorrective">—</strong><span class="kpi-label">Participación de OT</span><span class="kpi-foot" id="kpiCorrectiveFoot">Del total de órdenes</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-cyan"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg></span><span class="kpi-period">RECURSOS</span></div>
+            <strong class="kpi-value" id="kpiHours">—</strong><span class="kpi-label">Horas de mano de obra</span><span class="kpi-foot">Horas-hombre registradas</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-amber"><svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5h16M6.5 15V9m5.5 6V5m5.5 10v-4"/></svg></span><span class="kpi-period">DISPONIBILIDAD</span></div>
+            <strong class="kpi-value" id="kpiDowntime">—</strong><span class="kpi-label">Downtime total</span><span class="kpi-foot">Horas de indisponibilidad</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-green"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5v17m4-13H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H7"/></svg></span><span class="kpi-period">IMPACTO ECONÓMICO</span></div>
+            <strong class="kpi-value kpi-currency" id="kpiCost">—</strong><span class="kpi-label">Costo directo</span><span class="kpi-foot" id="kpiCostFoot">CLP registrados en el CMMS</span>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-top"><span class="kpi-icon icon-rose"><svg viewBox="0 0 24 24" fill="none"><path d="M4.5 18.5h15M6 15l4-4 3 2 5-6"/><circle cx="18" cy="7" r="1.5"/></svg></span><span class="kpi-period">MANTENIBILIDAD</span></div>
+            <strong class="kpi-value" id="kpiMttr">—</strong><span class="kpi-label">MTTR correctivo</span><span class="kpi-foot" id="kpiMttrFoot">Promedio · mediana —</span>
+          </article>
+        </section>
+
+        <section class="analysis-section" id="analytics">
+          <div class="section-heading">
+            <div><p class="eyebrow"><span class="eyebrow-line"></span> LECTURA OPERACIONAL</p><h2>Análisis del mantenimiento</h2></div>
+            <span class="section-note" id="periodNote">Vista completa del dataset</span>
+          </div>
+          <div class="chart-grid">
+            <article class="chart-card chart-card-large">
+              <div class="chart-heading"><div><h3>Distribución por estrategia</h3><p>Órdenes de trabajo por tipo de mantenimiento</p></div><span class="chart-tag">ACTIVIDAD</span></div>
+              <div class="chart-container"><canvas id="maintenanceChart" aria-label="Órdenes por tipo de mantenimiento"></canvas></div>
+            </article>
+            <article class="chart-card">
+              <div class="chart-heading"><div><h3>Recursos e indisponibilidad</h3><p>Horas-hombre frente a downtime</p></div><span class="chart-tag">IMPACTO</span></div>
+              <div class="chart-container"><canvas id="resourceChart" aria-label="Horas de mano de obra y downtime por mantenimiento"></canvas></div>
+            </article>
+            <article class="chart-card chart-card-large">
+              <div class="chart-heading"><div><h3>Pareto de modos de falla</h3><p>Eventos acumulados · principales fallas correctivas</p></div><span class="chart-tag">CONFIABILIDAD</span></div>
+              <div class="chart-container chart-container-tall"><canvas id="paretoChart" aria-label="Pareto de modos de falla"></canvas></div>
+            </article>
+            <article class="chart-card">
+              <div class="chart-heading"><div><h3>MTTR por familia</h3><p>Tiempo promedio de reparación · horas</p></div><span class="chart-tag">MANTENIBILIDAD</span></div>
+              <div class="chart-container chart-container-tall"><canvas id="mttrChart" aria-label="MTTR por tipo de equipo"></canvas></div>
+            </article>
+            <article class="chart-card chart-card-large">
+              <div class="chart-heading"><div><h3>Mapa Jack-Knife de equipos</h3><p>Frecuencia relativa vs. downtime por falla</p></div><span class="chart-tag">PRIORIZACIÓN</span></div>
+              <div class="chart-container chart-container-tall"><canvas id="jackknifeChart" aria-label="Diagrama Jack-Knife de equipos"></canvas></div>
+              <div class="chart-legend-note"><span class="legend-dot dot-blue"></span> Bajo control <span class="legend-dot dot-amber"></span> Agudo <span class="legend-dot dot-violet"></span> Crónico <span class="legend-dot dot-rose"></span> Grave</div>
+            </article>
+            <article class="chart-card">
+              <div class="chart-heading"><div><h3>Equipos con mayor downtime</h3><p>Activos que concentran indisponibilidad</p></div><span class="chart-tag">TOP 10</span></div>
+              <div class="chart-container chart-container-tall"><canvas id="equipmentChart" aria-label="Top 10 equipos por downtime"></canvas></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="priority-section" id="priorities">
+          <div class="section-heading">
+            <div><p class="eyebrow"><span class="eyebrow-line"></span> FOCO DE INTERVENCIÓN</p><h2>Activos prioritarios</h2></div>
+            <span class="section-note">Ordenados por riesgo técnico relativo</span>
+          </div>
+          <div class="table-card">
+            <div class="table-header"><div><strong>Ranking Jack-Knife</strong><span>Frecuencia y downtime de órdenes correctivas válidas</span></div><span class="table-count" id="priorityCount">0 activos</span></div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>POS.</th><th>EQUIPO</th><th>TIPO</th><th>CRIT.</th><th>FALLAS</th><th>MTTR · h</th><th>DOWNTIME · h</th><th>RIESGO REL.</th><th>CUADRANTE</th></tr></thead>
+                <tbody id="priorityTable"><tr><td colspan="9" class="empty-table">Carga un dataset para ver los activos prioritarios.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="method-note"><span class="method-note-icon">i</span><p><strong>Alcance metodológico.</strong> El MTTR se estima con la diferencia entre fecha de inicio y fecha de término de órdenes correctivas cerradas. El Jack-Knife relaciona el número de fallas por equipo con su downtime medio; es una herramienta de priorización, no sustituye el MTBF ni el juicio de ingeniería.</p></div>
+        </section>
+        <footer class="page-footer"><span>GMAO Intelligence <span class="footer-separator">·</span> Análisis de mantenimiento CMMS</span><span>Procesamiento local en el navegador</span></footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
